@@ -8,7 +8,9 @@ const userSchema = Schema({
   id: ObjectId,
   username: String,
   password: String,
-  email: String
+  email: String,
+  accounts: [{ id: Number, name: String, balance: Number, color: String }],
+  expenses: [{ id: Number, name: String, total: Number, color: String }]
 });
 
 const User = model('User', userSchema);

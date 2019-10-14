@@ -20,6 +20,110 @@ const userController = {
         res.status(400).json({ err, message: `Usuario no encontrado` });
       });
   },
+  accounts(req, res) {
+    const id = req.user._id;
+    User.findOne({ _id: id })
+      .select('-password ')
+      .then((user, err) => {
+        if (user) return res.json(user.accounts);
+        res.status(400).json({ err, message: `Usuario no encontrado` });
+      })
+      .catch(err => {
+        res.status(400).json({ err, message: `Usuario no encontrado` });
+      });
+  },
+  addAccount(req, res) {
+    console.log('adding account');
+
+    const id = req.user._id;
+    const { balance, name, color } = req.body;
+
+    const newAccount = { name, balance, color };
+
+    User.findOne({ _id: id })
+      .select('-password ')
+      .then((user, err) => {
+        if (user) {
+          newAccount.id = user.accounts.length;
+          console.log(newAccount);
+          user.accounts.push(newAccount);
+          user.save((err, updated) => res.json(updated.accounts));
+          return res;
+        }
+        res.status(400).json({ err, message: `Usuario no encontrado` });
+      })
+      .catch(err => {
+        console.log(err);
+        res.status(400).json({ err, message: `Usuario nasso encontrado` });
+      });
+  },
+  addExpense(req, res) {
+    const id = req.user._id;
+    const { account, expense, amount } = req.body;
+    User.findOne({ _id: id })
+      .select('-password ')
+      .then((user, err) => {
+        if (user) {
+          user.accounts[account].balance -= amount;
+          console.log(user.expenses);
+
+          user.expenses[expense].total += amount;
+          user.save((err, updated) => res.json(updated.expenses));
+          return res;
+        }
+        res.status(400).json({ err, message: `Usuario no encontrado` });
+      })
+      .catch(err => {
+        res.status(400).json({ err, message: `Usuario no encontrado` });
+      });
+  },
+  addIncome(req, res) {
+    const id = req.user._id;
+    const { account, amount } = req.body;
+    User.findOne({ _id: id })
+      .select('-password ')
+      .then((user, err) => {
+        if (user) {
+          user.accounts[account].balance += amount;
+          user.save((err, updated) => res.json(updated.accounts));
+          return res;
+        }
+        res.status(400).json({ err, message: `Usuario no encontrado` });
+      })
+      .catch(err => {
+        res.status(400).json({ err, message: `Usuario no encontrado` });
+      });
+  },
+  transfer(req, res) {
+    const id = req.user._id;
+    const { from, to, amount } = req.body;
+    User.findOne({ _id: id })
+      .select('-password ')
+      .then((user, err) => {
+        if (user) {
+          user.accounts[from].balance -= amount;
+          user.accounts[to].balance += amount;
+          user.save((err, updated) => res.json(updated.accounts));
+          return res;
+        }
+        res.status(400).json({ err, message: `Usuario no encontrado` });
+      })
+      .catch(err => {
+        res.status(400).json({ err, message: `Usuario no encontrado` });
+      });
+  },
+  expenses(req, res) {
+    const id = req.user._id;
+    User.findOne({ _id: id })
+      .select('-password ')
+      .then((user, err) => {
+        if (user) return res.json(user.expenses);
+        res.status(400).json({ err, message: `Usuario no encontrado` });
+      })
+      .catch(err => {
+        res.status(400).json({ err, message: `Usuario no encontrado` });
+      });
+  },
   update(req, res) {
     const idParam = req.params.id;
     const userReq = req.body;
@@ -52,15 +156,27 @@ const userController = {
     }
 
     User.findOne({ email }).then(user => {
-      if (user)
-        return res
-          .status(200)
-          .json({ error: true, message: `El email ${email} ya esta en uso` });
+      if (user) return res.status(400).json(`El email ${email} ya esta en uso`);
 
+      const accounts = [
+        { id: 0, name: 'Billetera', balance: 0, color: '#009ccc' },
+        { id: 1, name: 'Banco', balance: 0, color: '#ba2402' }
+      ];
+
+      const expenses = [
+        { id: 0, name: 'Servicos', total: 0 },
+        { id: 1, name: 'Vivienda', total: 0 },
+        { id: 2, name: 'Compras', total: 0 },
+        { id: 3, name: 'Transporte', total: 0 },
+        { id: 4, name: 'Proviciones', total: 0 },
+        { id: 5, name: 'Entretenimiento', total: 0 }
+      ];
       const newUser = new User({
         username,
         email,
-        password
+        password,
+        accounts,
+        expenses
       });
 
       bcrypt.genSalt(10, (err, salt) => {
@@ -105,7 +221,9 @@ const userController = {
           bcrypt.compare(password, user.password).then(valid => {
             if (!valid) {
               console.log(valid);
-              res.json({ error: true, message: 'Contraseña incorrecta' });
+              res
+                .status(400)
+                .json({ error: true, message: 'Contraseña incorrecta' });
             } else {
               jwt.sign(
                 { _id: user._id },
@@ -127,11 +245,13 @@ const userController = {
             }
           });
         } else {
-          res.json({ error: true, message: `El usuario ${email} no existe!` });
+          res
+            .status(400)
+            .json({ error: true, message: `El usuario ${email} no existe!` });
         }
       })
       .catch(err => {
-        res.status(400).json({ error: true, message: `Usuario no encontrado` });
+        res.status(400).json('Credenciales incorrectas');
       });
   },
   logout(req, res) {
